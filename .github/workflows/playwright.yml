@@ -36,7 +36,10 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
-        run: npm ci
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          npm ci
 
       # Install Playwright browsers
       - name: Install Playwright Browsers

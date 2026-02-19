@@ -6,17 +6,22 @@
   "scripts": {
     "setup": "node setup.js",
     "teardown": "node teardown.js",
-    "test": "npx playwright test --grep @database"
+    "test": "npx playwright test",
+    "db:setup": "node ./global-functions/global-setup.js",
+    "db:teardown": "node global-functions/global-teardown.js",
+    "pulse-report": "npx generate-report"
   },
   "keywords": [],
   "author": "Arghajit",
   "license": "ISC",
   "devDependencies": {
     "@playwright/test": "^1.49.1",
-    "@types/node": "^22.10.2"
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.16.0"
   },
   "dependencies": {
-    "dotenv": "^16.4.7",
-    "pg": "^8.13.1"
+    "@arghajit/playwright-pulse-report": "^0.3.4",
+    "dotenv": "^16.6.1",
+    "pg": "^8.18.0"
   }
 }

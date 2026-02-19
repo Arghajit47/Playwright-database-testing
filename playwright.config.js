@@ -11,6 +11,10 @@ const { defineConfig, devices } = require("@playwright/test");
  * @see https://playwright.dev/docs/test-configuration
  */
 module.exports = defineConfig({
+  // Run the backup before tests start
+  globalSetup: require.resolve("./global-functions/global-setup.js"),
+  // Run the restore after all tests finish
+  globalTeardown: require.resolve("./global-functions/global-teardown.js"),
   testDir: "./tests",
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -21,7 +25,7 @@ module.exports = defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: "html",
+  reporter: [["html"], ["@arghajit/playwright-pulse-report"]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */

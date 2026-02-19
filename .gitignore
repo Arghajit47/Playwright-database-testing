@@ -1,6 +1,8 @@
 node_modules/
 /test-results/
 /playwright-report/
+/pulse-report/
 /blob-report/
 /playwright/.cache/
 .env
+supabase_public_backup.sql
