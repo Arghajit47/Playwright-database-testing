@@ -16,6 +16,7 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       DB_PORT: ${{ secrets.DB_PORT }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     services:
       postgres:
         image: postgres:latest
@@ -45,39 +46,21 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install
 
-      # Set up environment variables
-      - name: Set Environment Variables
-        run: echo "DB_USER=${{ secrets.DB_USER }}\nDB_HOST=${{ secrets.DB_HOST }}\nDB_NAME=${{ secrets.DB_NAME }}\nDB_PASSWORD=${{ secrets.DB_PASSWORD }}\nDB_PORT=${{ secrets.DB_PORT }}" >> $GITHUB_ENV
+      # Debug: Show host being used (Sanitized)
+      - name: Debug Connection Host
+        run: |
+          echo "Active Host: $(echo $SUPABASE_DB_URL | sed -e 's/.*@//' -e 's/:.*//')"
 
       # Create database tables and seed data
       - name: Creates data tables and inserts data into tables
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_PORT: ${{ secrets.DB_PORT }}
         run: npm run setup
 
       # Run Playwright tests
       - name: Run Playwright tests
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: npx playwright test
 
       # Tear down database tables and data
       - name: Deletes the data table and their data
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_PORT: ${{ secrets.DB_PORT }}
         run: npm run teardown
 
       - name: Generate Pulse Report (Static and Dynamic)
