@@ -37,17 +37,9 @@ jobs:
         run: |
           echo "Active Host: $(echo $SUPABASE_DB_URL | sed -e 's/.*@//' -e 's/:.*//')"
 
-      # Create database tables and seed data
-      - name: Creates data tables and inserts data into tables
-        run: npm run setup
-
       # Run Playwright tests
       - name: Run Playwright tests
         run: npx playwright test
-
-      # Tear down database tables and data
-      - name: Deletes the data table and their data
-        run: npm run teardown
 
       - name: Generate Pulse Report (Static and Dynamic)
         run: |
