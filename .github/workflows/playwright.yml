@@ -35,7 +35,11 @@ jobs:
       # Debug: Show host being used (Sanitized)
       - name: Debug Connection Host
         run: |
-          echo "Active Host: $(echo $SUPABASE_DB_URL | sed -e 's/.*@//' -e 's/:.*//')"
+          if [[ -n "$SUPABASE_DB_URL" && "$SUPABASE_DB_URL" == *"@"* ]]; then
+            echo "Active Host: $(echo $SUPABASE_DB_URL | sed -e 's/.*@//' -e 's/:.*//')"
+          else
+            echo "Active Host: <host-unavailable>"
+          fi
 
       # Run Playwright tests
       - name: Run Playwright tests

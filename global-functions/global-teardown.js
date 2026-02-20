@@ -9,7 +9,18 @@ async function globalTeardown() {
   console.log("🔄 Restoring database from backup...");
 
   const dbUrl = process.env.SUPABASE_DB_URL;
+  if (!dbUrl) {
+    throw new Error("SUPABASE_DB_URL environment variable is required");
+  }
   const backupPath = path.join(process.cwd(), "supabase_public_backup.sql");
+
+  if (!fs.existsSync(backupPath)) {
+    console.warn(
+      `⚠️ Skipping database restore: Backup file not found at ${backupPath}`,
+    );
+    console.warn("This usually means the global setup failed to create it.");
+    return;
+  }
 
   try {
     const dbParams = new URL(dbUrl);
@@ -43,14 +54,19 @@ async function globalTeardown() {
 
     const command = `${psqlPath} -q -f "${backupPath}"`;
 
-    execSync(command, { stdio: "pipe", env: pgEnv });
+    execSync(command, { stdio: "pipe", env: pgEnv, timeout: 30000 });
 
     console.log("✅ Database fully restored to its pre-test state.");
   } catch (error) {
     console.error(
       "❌ Failed to restore database. Ensure psql is installed and credentials are correct.",
     );
-    console.error(error.message);
+    if (error.stderr) {
+      console.error(`PSQL ERROR: ${error.stderr.toString()}`);
+    } else if (error.stdout) {
+      console.error(`PSQL OUTPUT: ${error.stdout.toString()}`);
+    }
+    console.error(`Message: ${error.message}`);
     throw error;
   }
 }

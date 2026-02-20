@@ -9,6 +9,9 @@ async function globalSetup() {
   console.log("🔄 Creating native PostgreSQL backup...");
 
   const dbUrl = process.env.SUPABASE_DB_URL;
+  if (!dbUrl) {
+    throw new Error("SUPABASE_DB_URL environment variable is required");
+  }
   const backupPath = path.join(process.cwd(), "supabase_public_backup.sql");
 
   try {
@@ -56,14 +59,19 @@ async function globalSetup() {
     const command = `${pgDumpPath} ${tableFlags} --clean --if-exists --file="${backupPath}"`;
 
     // Execute the command synchronously with PG environment variables
-    execSync(command, { stdio: "pipe", env: pgEnv });
+    execSync(command, { stdio: "pipe", env: pgEnv, timeout: 30000 });
 
     console.log(`✅ Backup created successfully at: ${backupPath}`);
   } catch (error) {
     console.error(
-      "❌ Failed to create database backup. Ensure pg_dump is installed and credentials are correct.",
+      `❌ Failed to create database backup at: ${backupPath}. Ensure pg_dump is installed and credentials are correct.`,
     );
-    console.error(error.message);
+    if (error.stderr) {
+      console.error(`PG_DUMP ERROR: ${error.stderr.toString()}`);
+    } else if (error.stdout) {
+      console.error(`PG_DUMP OUTPUT: ${error.stdout.toString()}`);
+    }
+    console.error(`Message: ${error.message}`);
     throw error;
   }
 }

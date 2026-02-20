@@ -95,19 +95,41 @@ test.describe("Database Integration & Constraint Testing", () => {
     await test.step("Sort employees by name desc", async () => {
       const res = await db.query(getEmployeesSortedByNameDesc);
       console.log("Employees (Name Desc):", JSON.stringify(res.rows));
-      expect(res.rows).toBeDefined();
+      expect(res.rows.length).toBeGreaterThan(0);
+      for (let i = 0; i < res.rows.length - 1; i++) {
+        expect(res.rows[i].full_name >= res.rows[i + 1].full_name).toBeTruthy();
+      }
     });
 
     await test.step("Sort projects by start date desc", async () => {
       const res = await db.query(getProjectsSortedByStartDate);
       console.log("Projects (Date Desc):", JSON.stringify(res.rows));
-      expect(res.rows).toBeDefined();
+      expect(res.rows.length).toBeGreaterThan(0);
+      for (let i = 0; i < res.rows.length - 1; i++) {
+        const date1 = new Date(res.rows[i].start_date);
+        const date2 = new Date(res.rows[i + 1].start_date);
+        expect(date1.getTime()).toBeGreaterThanOrEqual(date2.getTime());
+      }
     });
 
     await test.step("Sort employees by dept and salary", async () => {
       const res = await db.query(getEmployeesSortedByDeptAndSalary);
       console.log("Employees (Dept/Salary):", JSON.stringify(res.rows));
-      expect(res.rows).toBeDefined();
+      expect(res.rows.length).toBeGreaterThan(0);
+      for (let i = 0; i < res.rows.length - 1; i++) {
+        const curr = res.rows[i];
+        const next = res.rows[i + 1];
+
+        if (curr.dept_id === next.dept_id) {
+          // Within same department, salary should be Descending
+          expect(Number(curr.salary)).toBeGreaterThanOrEqual(
+            Number(next.salary),
+          );
+        } else {
+          // Different departments should be Ascending
+          expect(curr.dept_id).toBeLessThan(next.dept_id);
+        }
+      }
     });
   });
 
