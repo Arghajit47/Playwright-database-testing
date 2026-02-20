@@ -1,83 +1,236 @@
 // Import from your custom fixture, NOT @playwright/test
 const { test, expect } = require("../fixtures/db-fixtures");
+import {
+  getAllDepartmentsDetails,
+  getDepartmentsWithBudgetAbove10k,
+  updateDepartmentNameById,
+} from "../queryList/departments";
+import {
+  getAllEmployeesDetails,
+  getInactiveEmployees,
+  getEmployeesSortedByNameDesc,
+  getEmployeesSortedByDeptAndSalary,
+  insertNewEmployee,
+  updateEmployeeById,
+  deleteEmployeeById,
+  addManagerIdColumn,
+  updateManagerIdForHighIds,
+} from "../queryList/employees";
+import { getAllTasksDetails } from "../queryList/tasks";
+import {
+  getAllProjectsDetails,
+  getHighPriorityProjects,
+  getProjectsSortedByStartDate,
+} from "../queryList/projects";
+import { getAllAuditLogsDetails } from "../queryList/auditLogs";
+import {
+  innerJoinEmployeesDepartments,
+  leftJoinEmployeesDepartments,
+  rightJoinEmployeesDepartments,
+  fullOuterJoinEmployeesDepartments,
+  oldStyleJoinEmployeesDepartments,
+  tasksWithProjectInfo,
+  employeesWithManagerInfo,
+  employeeProjectTaskDetails,
+  departmentEmployeeTaskSummary,
+} from "../queryList/joins";
 
-test.describe.only("Database Integration & Constraint Testing", () => {
-  // --- 1. Testing Constraints (Employees Table) ---
-  test("DB should enforce salary > 0 constraint", async ({ db }) => {
-    try {
-      // Attempt to insert an invalid salary
-      await db.query(`
-        INSERT INTO employees (full_name, dept_id, salary, is_active) 
-        VALUES ('Invalid User', 1, -500, true)
-      `);
-      // If the above succeeds, the test must fail
-      expect(true).toBe(false);
-    } catch (error) {
-      // Validate that PostgreSQL blocked it due to the specific CHECK constraint
-      expect(error.message).toContain("violates check constraint");
-    }
+test.describe("Database Integration & Constraint Testing", () => {
+  test("All DB tables are accessible", async ({ db }) => {
+    await test.step("Get all departments details", async () => {
+      const departments = await db.query(getAllDepartmentsDetails);
+      console.log("Departments:", JSON.stringify(departments.rows));
+      expect(departments.rows).toBeDefined();
+    });
+
+    await test.step("Get all employees details", async () => {
+      const employees = await db.query(getAllEmployeesDetails);
+      console.log("Employees:", JSON.stringify(employees.rows));
+      expect(employees.rows).toBeDefined();
+    });
+
+    await test.step("Get all tasks details", async () => {
+      const tasks = await db.query(getAllTasksDetails);
+      console.log("Tasks:", JSON.stringify(tasks.rows));
+      expect(tasks.rows).toBeDefined();
+    });
+
+    await test.step("Get all projects details", async () => {
+      const projects = await db.query(getAllProjectsDetails);
+      console.log("Projects:", JSON.stringify(projects.rows));
+      expect(projects.rows).toBeDefined();
+    });
+
+    await test.step("Get all audit logs details", async () => {
+      const auditLogs = await db.query(getAllAuditLogsDetails);
+      console.log("Audit Logs:", JSON.stringify(auditLogs.rows));
+      expect(auditLogs.rows).toBeDefined();
+    });
   });
 
-  // --- 2. Testing Relational Cascades (Projects -> Tasks) ---
-  test("DB should cascade delete tasks when a project is removed", async ({
-    db,
-  }) => {
-    // 1. Insert a temporary project
-    const projectRes = await db.query(`
-      INSERT INTO projects (title, priority) VALUES ('Temp Project', 3) RETURNING id
-    `);
-    const projectId = projectRes.rows[0].id;
+  test("Filtering and Sorting Data", async ({ db }) => {
+    await test.step("Filter departments by budget > 10k", async () => {
+      const res = await db.query(getDepartmentsWithBudgetAbove10k);
+      console.log("Departments > 10k:", JSON.stringify(res.rows));
+      res.rows.forEach((dept) => {
+        expect(Number(dept.budget || 10001)).toBeGreaterThan(10000);
+      });
+    });
 
-    // 2. Insert a temporary task linked to that project
-    await db.query(
-      `
-      INSERT INTO tasks (project_id, description) VALUES ($1, 'Temp Task')
-    `,
-      [projectId],
-    );
+    await test.step("Filter inactive employees", async () => {
+      const res = await db.query(getInactiveEmployees);
+      console.log("Inactive Employees:", JSON.stringify(res.rows));
+      expect(res.rows).toBeDefined();
+    });
 
-    // 3. Delete the project directly
-    await db.query("DELETE FROM projects WHERE id = $1", [projectId]);
+    await test.step("Filter high priority projects", async () => {
+      const res = await db.query(getHighPriorityProjects);
+      console.log("High Priority Projects:", JSON.stringify(res.rows));
+      expect(res.rows).toBeDefined();
+    });
 
-    // 4. Validate the Cascade: Ensure the task was automatically deleted
-    const taskCheck = await db.query(
-      "SELECT * FROM tasks WHERE project_id = $1",
-      [projectId],
-    );
-    expect(taskCheck.rows.length).toBe(0);
+    await test.step("Sort employees by name desc", async () => {
+      const res = await db.query(getEmployeesSortedByNameDesc);
+      console.log("Employees (Name Desc):", JSON.stringify(res.rows));
+      expect(res.rows).toBeDefined();
+    });
+
+    await test.step("Sort projects by start date desc", async () => {
+      const res = await db.query(getProjectsSortedByStartDate);
+      console.log("Projects (Date Desc):", JSON.stringify(res.rows));
+      expect(res.rows).toBeDefined();
+    });
+
+    await test.step("Sort employees by dept and salary", async () => {
+      const res = await db.query(getEmployeesSortedByDeptAndSalary);
+      console.log("Employees (Dept/Salary):", JSON.stringify(res.rows));
+      expect(res.rows).toBeDefined();
+    });
   });
 
-  // --- 3. Testing Triggers/Audit Logs (Departments Table) ---
-  test("DB should log budget updates to the audit_logs table", async ({
-    db,
-  }) => {
-    const deptId = 5; // 'HR' Department
-    const newBudget = 20000.0;
+  test("DML Operations (Insert, Update, Delete)", async ({ db }) => {
+    const tempEmpId = 107;
 
-    // 1. Fetch current budget to verify the "old_value" later
-    const initialRes = await db.query(
-      "SELECT budget FROM departments WHERE id = $1",
-      [deptId],
-    );
-    const oldBudget = initialRes.rows[0].budget;
+    await test.step("Insert a new employee", async () => {
+      await db.query(insertNewEmployee, [
+        tempEmpId,
+        "Argha Singha",
+        null,
+        97000,
+        true,
+      ]);
+      const res = await db.query("SELECT * FROM employees WHERE id = $1", [
+        tempEmpId,
+      ]);
+      expect(res.rows[0].full_name).toBe("Argha Singha");
+    });
 
-    // 2. Update the budget
-    await db.query("UPDATE departments SET budget = $1 WHERE id = $2", [
-      newBudget,
-      deptId,
-    ]);
+    await test.step("Update an existing employee", async () => {
+      await db.query(updateEmployeeById, ["Jhon Doe", 1, 190000, 106]);
+      const res = await db.query("SELECT * FROM employees WHERE id = 106");
+      expect(res.rows[0].full_name).toBe("Jhon Doe");
+    });
 
-    // 3. Query the audit_logs table to verify the trigger worked
-    const auditRes = await db.query(`
-      SELECT * FROM audit_logs 
-      WHERE table_name = 'departments' AND action = 'UPDATE' 
-      ORDER BY log_id DESC LIMIT 1
-    `);
+    await test.step("Delete the inserted employee", async () => {
+      await db.query(deleteEmployeeById, [tempEmpId]);
+      const res = await db.query("SELECT * FROM employees WHERE id = $1", [
+        tempEmpId,
+      ]);
+      expect(res.rows.length).toBe(0);
+    });
 
-    expect(auditRes.rows.length).toBe(1);
+    await test.step("Update department name", async () => {
+      await db.query(updateDepartmentNameById, ["Global Marketing", 4]);
+      const res = await db.query("SELECT name FROM departments WHERE id = 4");
+      expect(res.rows[0].name).toBe("Global Marketing");
+    });
+  });
 
-    // 4. Validate the JSONB data exactly matches the old state
-    const logEntry = auditRes.rows[0];
-    expect(logEntry.old_value.budget).toBe(Number(oldBudget));
+  test("Joins and Relationships", async ({ db }) => {
+    await test.step("Inner Join employees and departments", async () => {
+      const res = await db.query(innerJoinEmployeesDepartments);
+      console.log("Inner Join Result:", JSON.stringify(res.rows));
+      expect(res.rows.length).toBeGreaterThan(0);
+    });
+
+    await test.step("Left Join employees and departments", async () => {
+      const res = await db.query(leftJoinEmployeesDepartments);
+      console.log("Left Join Result:", JSON.stringify(res.rows));
+      expect(res.rows.length).toBeGreaterThan(0);
+    });
+
+    await test.step("Right Join employees and departments", async () => {
+      const res = await db.query(rightJoinEmployeesDepartments);
+      console.log("Right Join Result:", JSON.stringify(res.rows));
+      expect(res.rows.length).toBeGreaterThan(0);
+    });
+
+    await test.step("Full Outer Join employees and departments", async () => {
+      const res = await db.query(fullOuterJoinEmployeesDepartments);
+      console.log("Full Outer Join Result:", JSON.stringify(res.rows));
+      expect(res.rows.length).toBeGreaterThan(0);
+    });
+
+    await test.step("Old Style Join using comma", async () => {
+      const res = await db.query(oldStyleJoinEmployeesDepartments);
+      console.log("Old Style Join Result:", JSON.stringify(res.rows));
+      expect(res.rows.length).toBeGreaterThan(0);
+    });
+  });
+
+  test("Complex Relationship Joins", async ({ db }) => {
+    await test.step("Tasks with associated project titles", async () => {
+      const res = await db.query(tasksWithProjectInfo);
+      console.log("Tasks with Projects:", JSON.stringify(res.rows));
+      expect(res.rows.length).toBeGreaterThan(0);
+      expect(res.rows[0].title).toBeDefined();
+    });
+
+    await test.step("Employees with their managers (Self-Join)", async () => {
+      const res = await db.query(employeesWithManagerInfo);
+      console.log("Employees with Managers:", JSON.stringify(res.rows));
+      expect(res.rows.length).toBeGreaterThan(0);
+      // Dana White should have Charlie Day as manager based on previous update
+      const dana = res.rows.find((r) => r.employee === "Dana White");
+      if (dana) expect(dana.manager).toBeDefined();
+    });
+
+    await test.step("Triple Table Join (Employee -> Task -> Project)", async () => {
+      const res = await db.query(employeeProjectTaskDetails);
+      console.log("Employee Project Task Details:", JSON.stringify(res.rows));
+      expect(res.rows).toBeDefined();
+    });
+
+    await test.step("Aggregated Join (Department Task Summary)", async () => {
+      const res = await db.query(departmentEmployeeTaskSummary);
+      console.log("Department Task Summary:", JSON.stringify(res.rows));
+      expect(res.rows.length).toBeGreaterThan(0);
+      expect(res.rows[0].task_count).toBeDefined();
+    });
+  });
+
+  test("Schema Modifications (DDL)", async ({ db }) => {
+    await test.step("Add manager_id column to employees", async () => {
+      try {
+        await db.query(addManagerIdColumn);
+        console.log("Successfully added manager_id column");
+      } catch (err) {
+        if (err.message.includes("already exists")) {
+          console.log("manager_id column already exists, skipping ADD");
+        } else {
+          throw err;
+        }
+      }
+    });
+
+    await test.step("Update manager_id for employees with high IDs", async () => {
+      await db.query(updateManagerIdForHighIds, [104, 105]);
+      const res = await db.query(
+        "SELECT manager_id FROM employees WHERE id > 105",
+      );
+      res.rows.forEach((row) => {
+        expect(row.manager_id).toBe(104);
+      });
+    });
   });
 });

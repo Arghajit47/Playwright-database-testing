@@ -6,3 +6,5 @@ node_modules/
 /playwright/.cache/
 .env
 supabase_public_backup.sql
+# Snyk Security Extension - AI Rules (auto-generated)
+.agent/rules/snyk_rules.md

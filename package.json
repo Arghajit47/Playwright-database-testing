@@ -1,7 +1,7 @@
 {
   "name": "database-testing",
-  "version": "1.0.0",
-  "description": "",
+  "version": "2.0.0",
+  "description": "Database Testing using Playwright and Supabase",
   "main": "index.js",
   "scripts": {
     "setup": "node setup.js",
@@ -9,7 +9,8 @@
     "test": "npx playwright test",
     "db:setup": "node ./global-functions/global-setup.js",
     "db:teardown": "node global-functions/global-teardown.js",
-    "pulse-report": "npx generate-report"
+    "pulse-report": "generate-report",
+    "pulse-static-report": "generate-pulse-report"
   },
   "keywords": [],
   "author": "Arghajit",
