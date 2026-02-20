@@ -4,8 +4,6 @@
   "description": "Database Testing using Playwright and Supabase",
   "main": "index.js",
   "scripts": {
-    "setup": "node setup.js",
-    "teardown": "node teardown.js",
     "test": "npx playwright test",
     "db:setup": "node ./global-functions/global-setup.js",
     "db:teardown": "node global-functions/global-teardown.js",
