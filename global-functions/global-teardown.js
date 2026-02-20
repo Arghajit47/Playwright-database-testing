@@ -2,6 +2,7 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
+const dns = require("dns").promises;
 require("dotenv").config();
 
 async function globalTeardown() {
@@ -12,11 +13,25 @@ async function globalTeardown() {
 
   try {
     const dbParams = new URL(dbUrl);
+
+    // Force IPv4 resolution to prevent "Network is unreachable" errors in CI (GHA)
+    let ipV4Host = dbParams.hostname;
+    try {
+      const lookup = await dns.lookup(dbParams.hostname, { family: 4 });
+      ipV4Host = lookup.address;
+      console.log(`🌐 Resolved ${dbParams.hostname} to IPv4: ${ipV4Host}`);
+    } catch (dnsError) {
+      console.warn(
+        `⚠️ Could not resolve ${dbParams.hostname} to IPv4. Falling back to hostname.`,
+      );
+      console.warn(dnsError.message);
+    }
+
     const pgEnv = {
       ...process.env,
       PGPASSWORD: decodeURIComponent(dbParams.password),
       PGUSER: dbParams.username,
-      PGHOST: dbParams.hostname,
+      PGHOST: ipV4Host,
       PGPORT: dbParams.port,
       PGDATABASE: dbParams.pathname.split("/")[1],
     };
