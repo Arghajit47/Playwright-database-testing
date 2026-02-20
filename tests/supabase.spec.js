@@ -34,9 +34,11 @@ import {
   employeeProjectTaskDetails,
   departmentEmployeeTaskSummary,
 } from "../queryList/joins";
+import { pulse } from "@arghajit/playwright-pulse-report";
 
 test.describe("Database Integration & Constraint Testing", () => {
   test("All DB tables are accessible", async ({ db }) => {
+    pulse.severity("High");
     await test.step("Get all departments details", async () => {
       const departments = await db.query(getAllDepartmentsDetails);
       console.log("Departments:", JSON.stringify(departments.rows));
@@ -69,6 +71,7 @@ test.describe("Database Integration & Constraint Testing", () => {
   });
 
   test("Filtering and Sorting Data", async ({ db }) => {
+    pulse.severity("Low");
     await test.step("Filter departments by budget > 10k", async () => {
       const res = await db.query(getDepartmentsWithBudgetAbove10k);
       console.log("Departments > 10k:", JSON.stringify(res.rows));
@@ -109,6 +112,7 @@ test.describe("Database Integration & Constraint Testing", () => {
   });
 
   test("DML Operations (Insert, Update, Delete)", async ({ db }) => {
+    pulse.severity("Critical");
     const tempEmpId = 107;
 
     await test.step("Insert a new employee", async () => {
@@ -147,6 +151,7 @@ test.describe("Database Integration & Constraint Testing", () => {
   });
 
   test("Joins and Relationships", async ({ db }) => {
+    pulse.severity("Medium");
     await test.step("Inner Join employees and departments", async () => {
       const res = await db.query(innerJoinEmployeesDepartments);
       console.log("Inner Join Result:", JSON.stringify(res.rows));
@@ -179,6 +184,7 @@ test.describe("Database Integration & Constraint Testing", () => {
   });
 
   test("Complex Relationship Joins", async ({ db }) => {
+    pulse.severity("Minor");
     await test.step("Tasks with associated project titles", async () => {
       const res = await db.query(tasksWithProjectInfo);
       console.log("Tasks with Projects:", JSON.stringify(res.rows));
@@ -210,6 +216,7 @@ test.describe("Database Integration & Constraint Testing", () => {
   });
 
   test("Schema Modifications (DDL)", async ({ db }) => {
+    pulse.severity("Medium");
     await test.step("Add manager_id column to employees", async () => {
       try {
         await db.query(addManagerIdColumn);
