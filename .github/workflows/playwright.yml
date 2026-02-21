@@ -11,20 +11,7 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     env:
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-    services:
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_USER: ${{ secrets.DB_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.DB_NAME }}
-        ports:
-          - 5432:5432
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
       # Checkout code
       - uses: actions/checkout@v4
@@ -36,45 +23,32 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
-        run: npm ci
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          npm ci
 
       # Install Playwright browsers
       - name: Install Playwright Browsers
         run: npx playwright install
 
-      # Set up environment variables
-      - name: Set Environment Variables
-        run: echo "DB_USER=${{ secrets.DB_USER }}\nDB_HOST=${{ secrets.DB_HOST }}\nDB_NAME=${{ secrets.DB_NAME }}\nDB_PASSWORD=${{ secrets.DB_PASSWORD }}\nDB_PORT=${{ secrets.DB_PORT }}" >> $GITHUB_ENV
-
-      # Create database tables and seed data
-      - name: Creates data tables and inserts data into tables
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-        run: npm run setup
+      # Debug: Show host being used (Sanitized)
+      - name: Debug Connection Host
+        run: |
+          if [[ -n "$SUPABASE_DB_URL" && "$SUPABASE_DB_URL" == *"@"* ]]; then
+            echo "Active Host: $(echo $SUPABASE_DB_URL | sed -e 's/.*@//' -e 's/:.*//')"
+          else
+            echo "Active Host: <host-unavailable>"
+          fi
 
       # Run Playwright tests
       - name: Run Playwright tests
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_PORT: ${{ secrets.DB_PORT }}
         run: npx playwright test
 
-      # Tear down database tables and data
-      - name: Deletes the data table and their data
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-        run: npm run teardown
+      - name: Generate Pulse Report (Static and Dynamic)
+        run: |
+          npm run pulse-report
+          npm run pulse-static-report  
 
       # Upload Playwright test reports
       - uses: actions/upload-artifact@v4
@@ -82,4 +56,10 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report/
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: pulse-report
+          path: pulse-report/
           retention-days: 30
